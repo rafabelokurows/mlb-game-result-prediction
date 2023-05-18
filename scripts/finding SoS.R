@@ -64,16 +64,17 @@ results2 = results %>%
 #     pull(winloss)
 #   return (winloss)
 # }
-baseballr::standings_on_date_bref(date = "2023-03-30",division = "AL West")
+#baseballr::standings_on_date_bref(date = "2023-03-30",division = "AL West")
 #winloss_opp("2023-04-01","OAK","AL West")
 # opp = "OAK"
 # division= "AL West"
 
 #divisions = unique(results2$div_opp)
 dates = as.Date(c(as.Date("2023-03-29"),sort(unique(results2$Date2))))
+dput(dates)
 #date_divisions = data.frame(dates) %>% group_by(dates) %>% expand(divisions)
 all_standings = data.frame()
-for (i in 16:length(dates)){
+for (i in 36:length(dates)){
   #datevar = enquo(date)
   date_check=as.Date(dates[i])
   print(date_check)
@@ -87,15 +88,19 @@ for (i in 16:length(dates)){
 }
 
 all_standings %>% count(date_standing)
-saveRDS(all_standings,file="standings.rds")
+saveRDS(all_standings,file="data\\standings.rds")
+#all_standings = readRDS("data\\standings.rds")
+#standings2 = readRDS("data\\standings2.rds")
+#all_standings = bind_rows(all_standings,standings2)
+all_standings %>% filter(Tm=="LAA") %>% arrange(date_standing)
+all_standings %>% filter(Tm=="OAK") %>% View()
+
+results2 %>% filter(Tm=="NYY") %>%
+  left_join(all_standings %>%
+              mutate(date_standing = date_standing+1),by=c("Opp" = "Tm","Date2"="date_standing")) %>%
+  group_by(str_detect(Result,"W")) %>% summarize(mean(winloss))
 
 
-
-
-
-
-
-dia30 = results %>% arrange(Date2) %>%  head(30)
 
 games_day %>% clipr::write_clip()
 

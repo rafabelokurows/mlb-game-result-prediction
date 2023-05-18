@@ -2,8 +2,6 @@ library(baseballr)
 library(tidyverse)
 library(lubridate)
 
-baseballr::bref_team_results("LAA", 2023)
-
 past_results = function(){
 
   teams <- c("ATL", "MIA", "NYM", "PHI", "WSN",

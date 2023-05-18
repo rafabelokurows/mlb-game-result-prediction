@@ -4,14 +4,14 @@ library(tidyverse)
 library(lubridate)
 
 #### Loading data ####
-teams = readRDS("data\\teams.rds")
+teams = readRDS("data\\work\\teams.rds")
 eval(parse("scripts\\obtaining-data.R", encoding="UTF-8"))
 #TODO:
-#Source outro script onde vou obter os dados de results e pitchers
+#criar script que executa todo dia e coloca dados atualizados na pasta
 #
 
 results = past_results()
-saveRDS(results,"data\\results.rds")
+saveRDS(results,"data\\work\\results.rds")
 #results = readRDS("data\\results.rds")
 
 dates = unique(results$Date2)[unique(results$Date2)>"2023-04-10"] %>% as.character() %>% sort()
@@ -20,6 +20,7 @@ df=data.frame()
 for (i in dates){
   print(paste0("Date: ",i))
   games = mlb_game_pks(i)
+  games_before = mlb_game_pks(as.Date(i)-1)
   print(paste0("Games: ",nrow(games)))
   games_aux = games %>% as_tibble() %>%
     left_join(teams %>% select(team_full_name,abb,league_name,division_name) %>% rename(home_team_abb = 2,
@@ -40,9 +41,19 @@ for (i in dates){
     starters = baseballr::mlb_probables(games[j,"game_pk"])
     home_team_name = games_aux[j,]$teams.home.team.name
     away_team_name = games_aux[j,]$teams.away.team.name
+    home_team = games_aux[j,]$home_team_abb
+    away_team = games_aux[j,]$away_team_abb
+
+    results_yday_home = all_standings %>%
+                  mutate(date_standing = date_standing+1) %>%
+      filter(Tm==home_team & date_standing==i)
+    results_yday_away = all_standings %>%
+      mutate(date_standing = date_standing+1) %>%
+      filter(Tm==away_team & date_standing==i)
+
     home_starter = filter(starters,team  == home_team_name)$fullName
     away_starter = filter(starters,team  == away_team_name)$fullName
-    pitchers_all_stats = pitchers_allseason %>%
+      pitchers_all_stats = pitchers_allseason %>%
       filter(Name %in% c(home_starter,away_starter)) %>%
       mutate(h_a = if_else(Name == home_starter,"home_pitcher","away_pitcher")) %>%
       select(h_a,GS,W,L,IP,ER,ERA,WHIP,SO,BF,SO9,SO.W) %>%
@@ -58,14 +69,43 @@ for (i in dates){
       select(h_a,winpct,mean_ip,ERA,WHIP) %>%
       pivot_wider(values_from=winpct:WHIP,names_from=h_a,names_glue = "last30_{h_a}_{.value}")
 
-    home_team = games_aux[j,]$home_team_abb
-    away_team = games_aux[j,]$away_team_abb
+
     print(paste0(j," - Home: ",home_team," x Away: ",away_team))
     past_games_home = results %>% filter(Tm %in% c(games_aux$home_team_abb[j])
                                     & Date2 < i)
     home_games_10days = results %>% filter(Tm %in% c(games_aux$home_team_abb[j])
                                          & between(Date2,(as.Date(i)-10),as.Date(i)-1)) %>%
       nrow()
+    sos_home = results2 %>% filter(Tm==home_team) %>%
+      filter(Date2 < i) %>%
+      left_join(all_standings %>%
+                  mutate(date_standing = date_standing+1),by=c("Opp" = "Tm","Date2"="date_standing"))
+    sos_grouped_home = sos_home %>%
+      group_by(result=str_detect(Result,"W")) %>%
+      summarize(wlpct=mean(winloss))
+    sos_total_home = sos_home %>%  summarize(wlpct=mean(winloss))
+    home_sos_losses = sos_grouped_home[sos_grouped_home$result==F,]$wlpct
+    if (identical(home_sos_losses, numeric(0))) {
+      home_sos_losses <- NA_complex_
+    }
+    home_sos_wins = sos_grouped_home[sos_grouped_home$result==T,]$wlpct
+    home_sos_total = sos_total_home$wlpct
+
+    sos_away = results2 %>% filter(Tm==home_team) %>%
+      filter(Date2 < i) %>%
+      left_join(all_standings %>%
+                  mutate(date_standing = date_standing+1),by=c("Opp" = "Tm","Date2"="date_standing"))
+    sos_grouped_away = sos_away %>%
+      group_by(result=str_detect(Result,"W")) %>%
+      summarize(wlpct=mean(winloss))
+    sos_total_away = sos_away %>%  summarize(wlpct=mean(winloss))
+    away_sos_losses = sos_grouped_away[sos_grouped_away$result==F,]$wlpct
+    if (identical(away_sos_losses, numeric(0))) {
+      away_sos_losses <- NA_complex_
+    }
+    away_sos_wins = sos_grouped_away[sos_grouped_away$result==T,]$wlpct
+    away_sos_total = sos_total_away$wlpct
+
 
     past_games_away = results %>% filter(Tm %in% c(games_aux$away_team_abb[j])
                                          & Date2 < i)
@@ -74,9 +114,25 @@ for (i in dates){
       nrow()
 
     game = games_aux[j,] %>%
-      mutate(home_games_10days = home_games_10days,
-             away_games_10days = away_games_10days) %>%
-      bind_cols(
+      mutate(winHome = if_else(teams.away.isWinner,0,1)) %>%
+      select(-c(link:gameDate,isTie:publicFacing,gamedayType:seasonDisplay,scheduledInnings:teams.away.seriesNumber,
+                teams.away.team.id:teams.home.seriesNumber,teams.home.team.id:content.link)) %>%
+      mutate(teams.away.leagueRecord.wins = results_yday_away$W,
+             teams.home.leagueRecord.wins = results_yday_home$W,
+             teams.away.leagueRecord.losses = results_yday_away$L,
+             teams.home.leagueRecord.losses = results_yday_home$L,
+             teams.home.leagueRecord.pct = results_yday_home$winloss,
+             teams.away.leagueRecord.pct = results_yday_away$winloss,
+             home_games_10days,
+             away_games_10days,
+             home_sos_losses,
+             home_sos_wins,
+             home_sos_total,
+             away_sos_losses,
+             away_sos_wins,
+             away_sos_total
+             ) %>%
+    bind_cols(
         past_games_home %>% summarize(R=sum(R,na.rm = T),RA=sum(RA,na.rm = T),
                                       home_exp_pct = R^2/((R^2)+(RA^2))) %>%
           select(home_exp_pct),
@@ -118,9 +174,9 @@ for (i in dates){
                   away_extra_innings_games_last = sum(Inn!=""&row_number()==10)
         ))
     game = game %>% bind_cols(pitchers_all_stats) %>%bind_cols(pitchers_last_stats) %>%
-      mutate(winHome = if_else(teams.away.isWinner,0,1)) %>%
-      select(-c(link:gameDate,isTie:publicFacing,gamedayType:seasonDisplay,scheduledInnings:teams.away.seriesNumber,
-                                                      teams.away.team.id:teams.home.seriesNumber,teams.home.team.id:content.link)) %>%
+      # mutate(winHome = if_else(teams.away.isWinner,0,1)) %>%
+      # select(-c(link:gameDate,isTie:publicFacing,gamedayType:seasonDisplay,scheduledInnings:teams.away.seriesNumber,
+                                                      # teams.away.team.id:teams.home.seriesNumber,teams.home.team.id:content.link)) %>%
       mutate(teams.home.leagueRecord.pct = as.numeric(teams.home.leagueRecord.pct),
              teams.away.leagueRecord.pct = as.numeric(teams.away.leagueRecord.pct)) %>%
       mutate(home_dif_win_pct = home_exp_pct-teams.home.leagueRecord.pct,
@@ -131,7 +187,7 @@ for (i in dates){
 }
 
 
-write.csv(df,paste0("\\data\\",format(Sys.Date(), "%Y%m%d"),"games.csv"))
+write.csv(df,paste0("data\\",format(Sys.Date(), "%Y%m%d"),"_games.csv"))
 
 
 #investigar dados no excel

@@ -1,7 +1,7 @@
 # Predicting MLB game winners based on past performance ⚾
 
 ## Goal
-Predicting win/loss at MLB baseball games ⚾  
+Predicting win/loss at MLB baseball games  
 How I will get there:
 Using data from Baseballreference, MLB API and other sources (collected using baseballr R package), I will train ML models that look at past team results and pitcher performance to try to determine to the best extent possible the winners from each day's MLB games.
 As it is a difficult problem to solve, I'd be very satisfied achieving 75% accuracy on a day-to-day basis. Early models show 57 to 65% accuracy so far, which is not terrible.

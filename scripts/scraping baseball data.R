@@ -3,17 +3,23 @@ library(baseballr)
 library(tidyverse)
 library(lubridate)
 
-#### Loading data ####
+#### Loading static data ####
 teams = readRDS("data\\work\\teams.rds")
 eval(parse("scripts\\obtaining-data.R", encoding="UTF-8"))
 #TODO:
 #criar script que executa todo dia e coloca dados atualizados na pasta
 #
 
+
+#### Data that needs daily updates ####
 results = past_results()
+standings = update_standings()
 saveRDS(results,"data\\work\\results.rds")
+saveRDS(results,"data\\work\\standings.rds")
 #results = readRDS("data\\results.rds")
 
+
+#### Regenerating the entire dataframe ####
 dates = unique(results$Date2)[unique(results$Date2)>"2023-04-10"] %>% as.character() %>% sort()
 
 df=data.frame()
@@ -84,7 +90,7 @@ for (i in dates){
       group_by(result=str_detect(Result,"W")) %>%
       summarize(wlpct=mean(winloss))
     sos_total_home = sos_home %>%  summarize(wlpct=mean(winloss))
-    home_sos_losses = sos_grouped_home[sos_grouped_home$result==F,]$wlpct
+    home_sos_losses = as.numeric(sos_grouped_home[sos_grouped_home$result==F,]$wlpct)
     if (identical(home_sos_losses, numeric(0))) {
       home_sos_losses <- NA_complex_
     }
@@ -99,13 +105,12 @@ for (i in dates){
       group_by(result=str_detect(Result,"W")) %>%
       summarize(wlpct=mean(winloss))
     sos_total_away = sos_away %>%  summarize(wlpct=mean(winloss))
-    away_sos_losses = sos_grouped_away[sos_grouped_away$result==F,]$wlpct
+    away_sos_losses = as.numeric(sos_grouped_away[sos_grouped_away$result==F,]$wlpct)
     if (identical(away_sos_losses, numeric(0))) {
       away_sos_losses <- NA_complex_
     }
     away_sos_wins = sos_grouped_away[sos_grouped_away$result==T,]$wlpct
     away_sos_total = sos_total_away$wlpct
-
 
     past_games_away = results %>% filter(Tm %in% c(games_aux$away_team_abb[j])
                                          & Date2 < i)
@@ -154,8 +159,6 @@ for (i in dates){
           summarize(htoh_wins_home = sum(str_detect(Result,"W")),
                     htoh_wins_away = sum(str_detect(Result,"L"))))
 
-
-
     game = game %>% bind_cols(
       past_games_away %>% summarize(R=sum(R,na.rm = T),RA=sum(RA,na.rm = T),
                                     away_exp_pct = R^2/((R^2)+(RA^2))) %>%
@@ -180,20 +183,23 @@ for (i in dates){
       mutate(teams.home.leagueRecord.pct = as.numeric(teams.home.leagueRecord.pct),
              teams.away.leagueRecord.pct = as.numeric(teams.away.leagueRecord.pct)) %>%
       mutate(home_dif_win_pct = home_exp_pct-teams.home.leagueRecord.pct,
-            away_dif_win_pct = away_exp_pct-teams.away.leagueRecord.pct)
+            away_dif_win_pct = away_exp_pct-teams.away.leagueRecord.pct) %>%
+      select(-c(description,rescheduledFrom,rescheduledFromDate))
     df = bind_rows(df,game)
   }
 
 }
 
-
+df %>% group_by(home_wins_last10) %>% summarize(n(),mean(as.numeric(winHome),na.rm=T))
+#Saving updated data
 write.csv(df,paste0("data\\",format(Sys.Date(), "%Y%m%d"),"_games.csv"))
-
 
 #investigar dados no excel
 #correlação entre features
 #bar plots
-#ver outros modelos
+
+
+
 
 #### Obtendo jogos de hoje para gerar previsão ####
 todays_games = mlb_game_pks(Sys.Date())
@@ -314,7 +320,7 @@ sum(diag(table(pred_result$winHome,pred_result$predict)))/nrow(pred_result)
 
 
 
-correlations <- cor(df2[, !colnames(df2) %in% "winHome"], df$winHome)
+correlations <- cor(df[, !colnames(df) %in% "winHome"], df$winHome)
 teste = cor(df2 %>% purrr::keep(is.numeric),method="pearson",use="complete.obs" )
 options(scipen = 999)
 

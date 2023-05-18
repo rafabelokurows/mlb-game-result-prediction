@@ -33,6 +33,30 @@ past_results = function(){
 #saveRDS(results,"data\results.rds")
 }
 
+update_standings = function(standings){
+  last_date_standing = max(standings$date_standing)
+  if(last_date_standing==Sys.Date()){
+    break
+    return(null)
+  }
+  dates_standing = seq.Date(last_date_standing+1,Sys.Date(),by = "day")
+  print(dates_standing)
+  for (i in 1:length(dates_standing)){
+    date_check=as.Date(dates_standing[i])
+    print(date_check)
+    AL = baseballr::standings_on_date_bref(date = as.Date(date_check),division = "AL Overall") %>%
+      as_tibble() %>% mutate(winloss=coalesce(`W-L%`,0))
+    NL = baseballr::standings_on_date_bref(date = as.Date(date_check),division = "NL Overall") %>%
+      as_tibble() %>% mutate(winloss=coalesce(`W-L%`,0))
+    aux = bind_rows(AL,NL) %>% mutate(date_standing =as.Date(date_check))
+    standings = bind_rows(standings,aux)
+  }
+  return(standings)
+}
+
+
+
+
 
 # View results dataframe
 # View(results)

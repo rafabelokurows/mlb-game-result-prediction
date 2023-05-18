@@ -1,4 +1,4 @@
-df = read.csv("\\data\\20230518games.csv")
+df = read.csv("data\\games\\20230518_games.csv")
 predictors = c("teams.away.leagueRecord.pct",
                "teams.home.leagueRecord.pct",
                "wins_last5","away_wins_last5"  ,

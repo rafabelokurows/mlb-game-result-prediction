@@ -1,4 +1,4 @@
-# Predicting MLB game winners based on past performance
+# Predicting MLB game winners based on past performance ⚾
 
 ## Goal
 Predicting win/loss at MLB baseball games ⚾  

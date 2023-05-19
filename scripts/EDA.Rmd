@@ -1,0 +1,63 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(dplyr)
+library(lubridate)
+library(baseballr)
+findlastfile = function(){
+  prev_dir = getwd()
+  setwd(".\\data\\games")
+  files = file.info(list.files()) %>% tibble::rownames_to_column("filename") %>%
+    mutate(date =as.Date(substring(filename,1,8), format = "%Y%m%d")) %>%
+    slice_max(n=1,order_by = date,with_ties = F)
+  setwd(prev_dir)
+  return(files$filename)
+}
+filename = findlastfile()
+df = read.csv(paste0("data\\games\\",filename))
+head(df)
+```
+
+```{r}
+summary_df <- summary(df[, sapply(df, is.numeric)])
+print(summary_df)
+```
+
+```{r}
+# Histograms for numerical variables
+num_vars <- names(df)[sapply(df, is.numeric)]
+histogram_plots <- lapply(num_vars, function(var) {
+  ggplot(df, aes(x = .data[[var]])) +
+    geom_histogram(fill = "steelblue", color = "white") +
+    labs(title = paste("Histogram of", var), x = var, y = "Frequency")
+})
+
+```
+
+```{r}
+
+# Bar plots for categorical variables
+cat_vars <- names(df)[sapply(df, is.factor)]
+bar_plots <- lapply(cat_vars, function(var) {
+  df %>%
+    group_by(.data[[var]]) %>%
+    summarise(count = n()) %>%
+    ggplot(aes(x = .data[[var]], y = count)) +
+    geom_bar(stat = "identity", fill = "steelblue", color = "white") +
+    labs(title = paste("Bar Plot of", var), x = var, y = "Count")
+})
+```
+
+```{r}
+for (i in 1:length(histogram_plots)) {
+  print(histogram_plots[[i]])
+}
+
+for (i in 1:length(bar_plots)) {
+  print(bar_plots[[i]])
+}
+```
+

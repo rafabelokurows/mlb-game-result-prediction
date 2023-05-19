@@ -81,7 +81,7 @@ automl_model <- h2o.automl(
   training_frame = as.h2o(train_data),
   distribution = "bernoulli",
   #leaderboard_frame = as.h2o(test_data),
-  max_runtime_secs = 350, # maximum time for AutoML to run (in seconds)
+  max_runtime_secs = 240, # maximum time for AutoML to run (in seconds)
   stopping_metric = "mean_per_class_error", # metric to use for early stopping
   sort_metric = "mean_per_class_error", # metric to sort models by in leaderboard
   nfolds = 5, # number of cross-validation folds
@@ -95,7 +95,14 @@ h2o.get_leaderboard(automl_model, "mean_per_class_error")
 #h2o.get_leaderboard(automl_model, "AUC")
 m <- h2o.get_best_model(automl_model,criterion ="mean_per_class_error" )
 h2o.confusionMatrix(m)
-h2o.varimp(m) %>% as.data.frame()
+
+
+metrics_train = m@model$cross_validation_metrics_summary %>% as.data.frame() %>% select(mean)
+varimp = h2o.varimp(m) %>% as.data.frame()
+
+
+#exa <- h2o.explain(automl_model, as.h2o(test_data))
+
 # test_data = test_data %>%
 #   mutate_if(is.numeric, ~(scale(.) %>% as.vector)) %>% as.data.frame()
 
@@ -106,16 +113,24 @@ test2 = test_data%>% as.data.frame() %>%
   filter(!is.na(winHome))
 table(test2$winHome,test2$predict)
 sum(diag(table(test2$winHome,test2$predict)))/nrow(test2)
+library(caret)
+cm =confusionMatrix(test2$predict, reference = test2$winHome)
+metrics_test = cm$overall %>% as.data.frame() %>% rename(metrics=1) %>% bind_rows(
+cm$byClass %>% as.data.frame() %>% rename(metrics=1))
 
+
+saveRDS(metrics_train,paste0("data/results/",format(Sys.Date(), "%Y%m%d"),"_metrics_train.rds"))
+saveRDS(metrics_test,paste0("data/results/",format(Sys.Date(), "%Y%m%d"),"_metrics_test.rds"))
+saveRDS(test2,paste0("data/results/",format(Sys.Date(), "%Y%m%d"),"_data_test.rds"))
 # Stop the H2O cluster
-saveRDS(m,paste0("data\\",format(Sys.Date(), "%Y%m%d"),"_model.rds"))
+saveRDS(m,paste0("data/models/",format(Sys.Date(), "%Y%m%d"),"_model.rds"))
 h2o.shutdown()
 
 #### Obtendo jogos de hoje para gerar previsão ####
 library(h2o)
 dfToday = readRDS("data\\work\\today.rds")
 pred <- h2o.predict(m, as.h2o(dfToday))
-test2 = dfToday%>% as.data.frame() %>%
+pred_frame = dfToday%>% as.data.frame() %>%
   bind_cols(pred %>% as.data.frame())
-write.csv(test2,paste0(format(Sys.Date(),"%Y%m%d"),"predictions.csv"))
+write.csv(pred_frame,paste0("data/predictions/",format(Sys.Date(),"%Y%m%d"),"_predictions.csv"))
 

@@ -1,6 +1,6 @@
-library(baseballr)
-library(tidyverse)
+library(dplyr)
 library(lubridate)
+library(baseballr)
 
 #### Loading static data ####
 teams = readRDS("data\\work\\teams.rds")
@@ -13,6 +13,7 @@ results2 = results %>%
   left_join(teams %>% select(abb,div_opp=division_name),by=c("Opp"="abb")) %>%
   mutate(div_opp = gsub("American League","AL",div_opp),
          div_opp = gsub("National League","NL",div_opp))
+saveRDS(results2,"data\\work\\results2.rds")
 
 #### Standings ####
 standings = readRDS("data\\work\\standings.rds")
@@ -24,8 +25,6 @@ saveRDS(standings_upd,"data\\work\\standings.rds")
 #games_before = mlb_game_pks(Sys.Date()-2)
 yesterdays_games = prepare_games(Sys.Date()-1)
 saveRDS(yesterdays_games,"data\\work\\yesterday.rds")
-
-
 
 #### Today's games for prediction ####
 todays_games = prepare_games(Sys.Date())

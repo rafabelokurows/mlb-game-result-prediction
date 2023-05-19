@@ -36,7 +36,6 @@ past_results = function(){
 update_standings = function(standings){
   last_date_standing = max(standings$date_standing)
   if(last_date_standing==Sys.Date()){
-    break
     return(null)
   }
   dates_standing = seq.Date(last_date_standing+1,Sys.Date()-1,by = "day")

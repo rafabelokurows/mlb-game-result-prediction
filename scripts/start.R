@@ -36,14 +36,10 @@ for (i in dates){
   all_games = bind_rows(all_games,games)
 }
 
-teste = prepare_games("2023-04-30")
-
 df= df%>%
   select(-c(description,rescheduledFrom,rescheduledFromDate))
 #Saving updated data
 write.csv(df,paste0("data\\",format(Sys.Date(), "%Y%m%d"),"_games.csv"))
-
-teste = prepare_games(i)
 
 #### Avaliando previsões de ontem ####
 pred = test2 %>% select(game_pk,home_team_abb,away_team_abb,predict,p0,p1)
@@ -67,22 +63,7 @@ sum(diag(table(pred_result$winHome,pred_result$predict)))/nrow(pred_result)
 
 
 
-correlations <- cor(df[, !colnames(df) %in% "winHome"], df$winHome)
-teste = cor(df2 %>% purrr::keep(is.numeric),method="pearson",use="complete.obs" )
-options(scipen = 999)
 
-res <- cor(iris[,-5])
-teste[lower.tri(teste)] <- NA #assuming there are no actual NAs already
-# which seems likely with complete.obs
-#use lower.tri(res, diag = TRUE) to remove the diagonal too
-na.omit(reshape2::melt(teste))
-
-x <- reshape2::melt(teste)
-#subset first the variable 3 when it is equal to 1
-x <- subset(x, value != 1)
-#remove duplicate entries in that same variable
-x[duplicated(x$value),] %>%
-  filter(Var2 =="winHome") %>% arrange(desc(value))
 
 #Fetch today's games
 todays_games = mlb_game_pks(Sys.Date())

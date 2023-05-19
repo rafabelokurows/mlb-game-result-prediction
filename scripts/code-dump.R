@@ -1,3 +1,20 @@
+correlations <- cor(df[, !colnames(df) %in% "winHome"], df$winHome)
+teste = cor(df2 %>% purrr::keep(is.numeric),method="pearson",use="complete.obs" )
+options(scipen = 999)
+
+res <- cor(iris[,-5])
+teste[lower.tri(teste)] <- NA #assuming there are no actual NAs already
+# which seems likely with complete.obs
+#use lower.tri(res, diag = TRUE) to remove the diagonal too
+na.omit(reshape2::melt(teste))
+
+x <- reshape2::melt(teste)
+#subset first the variable 3 when it is equal to 1
+x <- subset(x, value != 1)
+#remove duplicate entries in that same variable
+x[duplicated(x$value),] %>%
+  filter(Var2 =="winHome") %>% arrange(desc(value))
+
 todays_games = mlb_game_pks(Sys.Date())
 games_aux = todays_games %>% as_tibble() %>%
   left_join(teams %>% select(team_full_name,abb,league_name,division_name) %>% rename(home_team_abb = 2,

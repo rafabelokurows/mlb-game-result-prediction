@@ -4,7 +4,6 @@
 #Testar com xgboost/GBM
 #Testar com mais tempo de treinamento
 #Normalizar predictors
-setwd("..")
 findlastfile = function(){
   prev_dir = getwd()
   setwd(".\\data\\games")

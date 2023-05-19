@@ -33,7 +33,7 @@ jobs:
         R -e 'install.packages("baseballr")'
     # Run R script
     - name: Daily data update
-      run: Rscript \scripts\data-update.R
+      run: Rscript ./scripts/data-update.R
 
     # Add new files in data folder, commit along with other modified files, push
     - name: Commit files

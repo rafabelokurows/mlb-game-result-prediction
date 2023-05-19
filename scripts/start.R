@@ -28,27 +28,22 @@ all_standings = standings_upd
 
 #### Regenerating the entire dataframe ####
 dates = unique(results$Date2)[unique(results$Date2)>"2023-04-10"] %>% as.character() %>% sort()
-
-df=data.frame()
+head(df)
+all_games=data.frame()
 for (i in dates){
   print(paste0("Date: ",i))
   games = prepare_games(i)
-  df = bind_rows(df,games)
+  all_games = bind_rows(all_games,games)
 }
+
+teste = prepare_games("2023-04-30")
 
 df= df%>%
   select(-c(description,rescheduledFrom,rescheduledFromDate))
 #Saving updated data
 write.csv(df,paste0("data\\",format(Sys.Date(), "%Y%m%d"),"_games.csv"))
 
-
-#### Obtendo jogos de hoje para gerar previsão ####
-library(h2o)
-dfToday = readRDS("data\\work\\today.rds")
-pred <- h2o.predict(m, as.h2o(dfToday))
-test2 = dfToday%>% as.data.frame() %>%
-  bind_cols(pred %>% as.data.frame())
-write.csv(test2,paste0(format(Sys.Date(),"%Y%m%d"),"predictions.csv"))
+teste = prepare_games(i)
 
 #### Avaliando previsões de ontem ####
 pred = test2 %>% select(game_pk,home_team_abb,away_team_abb,predict,p0,p1)

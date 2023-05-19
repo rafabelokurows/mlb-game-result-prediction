@@ -1,4 +1,21 @@
-df = read.csv("data\\games\\20230518_games.csv")
+#Pontos a avaliar:
+#Tamanho do split
+#Incluir Ensemble ou não
+#Testar com xgboost/GBM
+#Testar com mais tempo de treinamento
+#Normalizar predictors
+setwd("..")
+findlastfile = function(){
+  prev_dir = getwd()
+  setwd(".\\data\\games")
+  files = file.info(list.files()) %>% tibble::rownames_to_column("filename") %>%
+    mutate(date =as.Date(substring(filename,1,8), format = "%Y%m%d")) %>%
+    slice_max(n=1,order_by = date,with_ties = F)
+  setwd(prev_dir)
+  return(files$filename)
+}
+filename = findlastfile()
+df = read.csv(paste0("data\\games\\",filename))
 predictors = c("teams.away.leagueRecord.pct",
                "teams.home.leagueRecord.pct",
                "wins_last5","away_wins_last5"  ,
@@ -15,15 +32,15 @@ predictors = c("teams.away.leagueRecord.pct",
                "last30_home_pitcher_winpct", "last30_away_pitcher_mean_ip",
                "last30_home_pitcher_mean_ip","last30_away_pitcher_ERA",
                "last30_home_pitcher_ERA","last30_away_pitcher_WHIP",
-               "last30_home_pitcher_WHIP"
-               # "home_games_10days",
-               # "away_games_10days",
-               # "home_sos_losses",
-               # "home_sos_wins",
-               # "home_sos_total",
-               # "away_sos_losses",
-               # "away_sos_wins",
-               # "away_sos_total"
+               "last30_home_pitcher_WHIP",
+                "home_games_10days",
+                "away_games_10days",
+                "home_sos_losses",
+                "home_sos_wins",
+                "home_sos_total",
+                "away_sos_losses",
+                "away_sos_wins",
+               "away_sos_total"
                )
 response = "winHome"
 
@@ -33,11 +50,6 @@ response = "winHome"
 # train_idx <- sample(nrow(df), 0.85 * nrow(df), replace = FALSE)
 # train_data <- df[train_idx,]
 # test_data <- df[-train_idx,]
-
-
-
-
-#Use 70% of dataset as training set and remaining 30% as testing set
 library(caTools)
 set.seed(123)
 df = df %>% mutate(winHome = as.factor(winHome))
@@ -78,12 +90,6 @@ automl_model <- h2o.automl(
   seed = 123 # for reproducibility
 )
 
-#Pontos a avaliar:
-#Tamanho do split
-#Incluir Ensemble ou não
-#Testar com xgboost/GBM
-#Testar com mais tempo de treinamento
-#Normalizar predictors
 
 #Avaliação modelo treinado
 h2o.get_leaderboard(automl_model, "mean_per_class_error")
@@ -101,9 +107,16 @@ test2 = test_data%>% as.data.frame() %>%
   filter(!is.na(winHome))
 table(test2$winHome,test2$predict)
 sum(diag(table(test2$winHome,test2$predict)))/nrow(test2)
-#test2 %>% filter(winHome!=predict) %>% arrange(desc(predict)) %>% View()
-
 
 # Stop the H2O cluster
 saveRDS(m,paste0("data\\",format(Sys.Date(), "%Y%m%d"),"_model.rds"))
 h2o.shutdown()
+
+#### Obtendo jogos de hoje para gerar previsão ####
+library(h2o)
+dfToday = readRDS("data\\work\\today.rds")
+pred <- h2o.predict(m, as.h2o(dfToday))
+test2 = dfToday%>% as.data.frame() %>%
+  bind_cols(pred %>% as.data.frame())
+write.csv(test2,paste0(format(Sys.Date(),"%Y%m%d"),"predictions.csv"))
+

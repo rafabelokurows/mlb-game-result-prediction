@@ -30,8 +30,38 @@ saveRDS(yesterdays_games,"data\\work\\yesterday.rds")
 todays_games = prepare_games(Sys.Date())
 saveRDS(todays_games,"data\\work\\today.rds")
 
+#### COmbines yesterday's frame with today's data to train new model ####
+findlastfile = function(){
+  prev_dir = getwd()
+  setwd(".\\data\\games")
+  files = file.info(list.files()) %>% tibble::rownames_to_column("filename") %>%
+    mutate(date =as.Date(substring(filename,1,8), format = "%Y%m%d")) %>%
+    slice_max(n=1,order_by = date,with_ties = F)
+  setwd(prev_dir)
+  return(files$filename)
+}
+filename = findlastfile()
+df_games = read.csv(paste0("data\\games\\",filename))
+max(df_games$officialDate)
 
+#buscar dados 17,18,19 e 20
 
+# games = prepare_games("2023-05-17")
+# df_games = bind_rows(df_games,games)
+# games = prepare_games("2023-05-18")
+# df_games = bind_rows(df_games,games)
+#combinar com ultimo df (dodia 19)
+df_games = df_games %>% #filter(officialDate < Sys.Date()-1) %>%
+  #select(-c(season,seasonDisplay,status.codedGameState,status.statusCode)) %>%
+  bind_rows(yesterdays_games%>% #filter(officialDate < Sys.Date()-1) %>%
+              select(-c(season,seasonDisplay,status.codedGameState,status.statusCode,
+                        status.abstractGameCode))) %>%
+  select(-starts_with("X"))
+
+df_games %>% count(officialDate) %>% tail() %>% View()
+
+write.csv(df_games,paste0("data\\games\\",format(Sys.Date(), "%Y%m%d"),"_games.csv"))
+#executar o model
 
 # pitchers_allseason = pitchers_all_season()
 # pitchers_last30 = pitchers_last_30()

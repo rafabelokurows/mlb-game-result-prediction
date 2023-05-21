@@ -33,12 +33,13 @@ past_results = function(){
 #saveRDS(results,"data\results.rds")
 }
 
+standings
 update_standings = function(standings){
   last_date_standing = max(standings$date_standing)
   if(last_date_standing==Sys.Date()){
     return(NULL)
   }
-  dates_standing = seq.Date(last_date_standing+1,Sys.Date()-1,by = "day")
+  dates_standing = seq.Date(last_date_standing,Sys.Date()-1,by = "day")
   print(dates_standing)
   for (i in 1:length(dates_standing)){
     date_check=as.Date(dates_standing[i])
@@ -92,8 +93,9 @@ pitchers_last_30 = function(date=Sys.Date()-1){
   return(pitcher_last_30)
 }
 
-df=data.frame()
+#df=data.frame()
 prepare_games = function(date =NULL){
+  new_games=data.frame()
   #date=Sys.Date()
   print(paste0("Preparing and obtaining data for: ",date))
   games = mlb_game_pks(date) %>% as_tibble() %>%
@@ -149,8 +151,8 @@ prepare_games = function(date =NULL){
                                            & between(Date2,(as.Date(date)-10),as.Date(date)-1)) %>%
       nrow()
     sos_home = results2 %>% filter(Tm==home_team) %>%
-      filter(Date2 < i) %>%
-      left_join(all_standings,by=c("Opp" = "Tm","Date2"="date_standing"))
+      filter(Date2 < date) %>%
+      left_join(standings,by=c("Opp" = "Tm","Date2"="date_standing"))
     sos_grouped_home = sos_home %>%
       group_by(result=str_detect(Result,"W")) %>%
       summarize(wlpct=mean(winloss))
@@ -163,8 +165,8 @@ prepare_games = function(date =NULL){
     home_sos_total = sos_total_home$wlpct
 
     sos_away = results2 %>% filter(Tm==home_team) %>%
-      filter(Date2 < i) %>%
-      left_join(all_standings ,by=c("Opp" = "Tm","Date2"="date_standing"))
+      filter(Date2 < date) %>%
+      left_join(standings ,by=c("Opp" = "Tm","Date2"="date_standing"))
     sos_grouped_away = sos_away %>%
       group_by(result=str_detect(Result,"W")) %>%
       summarize(wlpct=mean(winloss))
@@ -251,7 +253,7 @@ prepare_games = function(date =NULL){
              teams.away.leagueRecord.pct = as.numeric(teams.away.leagueRecord.pct)) %>%
       mutate(home_dif_win_pct = home_exp_pct-teams.home.leagueRecord.pct,
              away_dif_win_pct = away_exp_pct-teams.away.leagueRecord.pct)
-    df = bind_rows(df,game)
+    new_games = bind_rows(new_games,game)
   }
-  return(df)
+  return(new_games)
 }

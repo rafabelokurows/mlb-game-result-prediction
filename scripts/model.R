@@ -124,13 +124,55 @@ saveRDS(metrics_test,paste0("data/results/",format(Sys.Date(), "%Y%m%d"),"_metri
 saveRDS(test2,paste0("data/results/",format(Sys.Date(), "%Y%m%d"),"_data_test.rds"))
 # Stop the H2O cluster
 saveRDS(m,paste0("data/models/",format(Sys.Date(), "%Y%m%d"),"_model.rds"))
-h2o.shutdown()
+saveRDS(varimp,paste0("data/models/",format(Sys.Date(), "%Y%m%d"),"_varimp.rds"))
+
+
+
+#### Avaliando previsões de ontem ####
+
+findlastpredictions = function(){
+  prev_dir = getwd()
+  setwd(".\\data\\predictions")
+  files = file.info(list.files()) %>% tibble::rownames_to_column("filename") %>%
+    mutate(date =as.Date(substring(filename,1,8), format = "%Y%m%d")) %>%
+    slice_max(n=1,order_by = date,with_ties = F)
+  setwd(prev_dir)
+  return(files$filename)
+}
+filename = findlastpredictions()
+preds= read.csv(paste0("data\\predictions\\",filename))
+
+pred = preds %>% select(game_pk,home_team_abb,away_team_abb,predict,p0,p1)
+yesterdays_games = mlb_game_pks(Sys.Date()-1)
+actual = yesterdays_games%>% as_tibble() %>%
+  left_join(teams %>% select(team_full_name,abb,league_name,division_name) %>% rename(home_team_abb = 2,
+                                                                                      league_home= 3,
+                                                                                      division_home= 4),by=c("teams.home.team.name"="team_full_name")) %>%
+  left_join(teams %>% select(team_full_name,abb,league_name,division_name) %>% rename(away_team_abb = 2,
+                                                                                      league_away= 3,
+                                                                                      division_away= 4),by=c("teams.away.team.name"="team_full_name"))  %>%
+  mutate(winHome = if_else(teams.away.isWinner,0,1))%>%
+  select(game_pk,officialDate,away_team_abb,teams.away.score,
+         home_team_abb,teams.home.score,winHome)
+
+pred_result = pred %>% left_join(actual) %>% relocate(c(p0,p1,predict),.before=winHome)
+#adicionar medidas principais aqui
+table(factor(pred_result$winHome),factor(pred_result$predict))
+sum(diag(table(pred_result$winHome,pred_result$predict)))/nrow(pred_result)
+
+#combinar resultado e salvar métricas
+cm_yesterday =caret::confusionMatrix(factor(pred_result$winHome),factor(pred_result$predict))
+metrics_eval = cm_yesterday$overall %>% as.data.frame() %>% rename(metrics=1) %>% bind_rows(
+  cm_yesterday$byClass %>% as.data.frame() %>% rename(metrics=1))
+saveRDS(pred_result,paste0("data/eval/",format(Sys.Date(), "%Y%m%d"),"_data_eval.rds"))
+saveRDS(metrics_eval,paste0("data/eval/",format(Sys.Date(), "%Y%m%d"),"_metrics_eval.rds"))
+
 
 #### Obtendo jogos de hoje para gerar previsão ####
-library(h2o)
 dfToday = readRDS("data\\work\\today.rds")
 pred <- h2o.predict(m, as.h2o(dfToday))
 pred_frame = dfToday%>% as.data.frame() %>%
   bind_cols(pred %>% as.data.frame())
 write.csv(pred_frame,paste0("data/predictions/",format(Sys.Date(),"%Y%m%d"),"_predictions.csv"))
 
+h2o.shutdown()

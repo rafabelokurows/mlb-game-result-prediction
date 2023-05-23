@@ -3,6 +3,7 @@ library(lubridate)
 library(baseballr)
 
 #### Loading static data ####
+standings = readRDS("data\\work\\standings.rds")
 teams = readRDS("data\\work\\teams.rds")
 eval(parse("scripts\\obtaining-data.R", encoding="UTF-8"))
 
@@ -16,14 +17,17 @@ results2 = results %>%
 saveRDS(results2,"data\\work\\results2.rds")
 
 #### Standings ####
-standings = readRDS("data\\work\\standings.rds")
+
 standings_upd = update_standings(standings)
 
 saveRDS(standings_upd,"data\\work\\standings.rds")
 
 #### Yesterday's games for evaluation ####
 #games_before = mlb_game_pks(Sys.Date()-2)
+
+setdiff(colnames(mlb_game_pks(Sys.Date()-1)),colnames(mlb_game_pks(Sys.Date()) ))
 yesterdays_games = prepare_games(Sys.Date()-1)
+yesterdays_games %>% select(winHome,teams.away.isWinner)
 saveRDS(yesterdays_games,"data\\work\\yesterday.rds")
 
 #### Today's games for prediction ####
@@ -44,13 +48,13 @@ filename = findlastfile()
 df_games = read.csv(paste0("data\\games\\",filename))
 max(df_games$officialDate)
 
-#buscar dados 17,18,19 e 20
+#Caso tiver algum jogo com winHome nulo
+# df_games %>% group_by(officialDate) %>% count(winHome) %>% tail()
+# yesterdays_games %>% group_by(officialDate) %>% count(winHome) %>% tail()
+# df_games = df_games %>% mutate(winHome = case_when(teams.away.isWinner&is.na(winHome)~0,
+#                                      !teams.away.isWinner&is.na(winHome)~1,
+#                                      TRUE~winHome))%>% group_by(officialDate)
 
-# games = prepare_games("2023-05-17")
-# df_games = bind_rows(df_games,games)
-# games = prepare_games("2023-05-18")
-# df_games = bind_rows(df_games,games)
-#combinar com ultimo df (dodia 19)
 df_games = df_games %>% #filter(officialDate < Sys.Date()-1) %>%
   #select(-c(season,seasonDisplay,status.codedGameState,status.statusCode)) %>%
   bind_rows(yesterdays_games%>% #filter(officialDate < Sys.Date()-1) %>%
@@ -58,7 +62,7 @@ df_games = df_games %>% #filter(officialDate < Sys.Date()-1) %>%
                         status.abstractGameCode))) %>%
   select(-starts_with("X"))
 
-df_games %>% count(officialDate) %>% tail() %>% View()
+
 
 write.csv(df_games,paste0("data\\games\\",format(Sys.Date(), "%Y%m%d"),"_games.csv"))
 #executar o model

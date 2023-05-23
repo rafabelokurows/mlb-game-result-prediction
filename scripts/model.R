@@ -21,25 +21,26 @@ predictors = c("teams.away.leagueRecord.pct",
                "home_wins_last10","home_runs_scored_last10",
                "htoh_wins_home","htoh_wins_away",
                "away_wins_last10","away_runs_scored_last10",
-               "home_extra_innings_games_last","away_extra_innings_games_last",
+               "home_extra_innings_games_last",
+               "away_extra_innings_games_last",
                "home_pitcher_ERA","away_pitcher_ERA",
                "home_pitcher_mean_ip","away_pitcher_mean_ip",
                "away_pitcher_winpct","home_pitcher_winpct",
                "home_dif_win_pct",
-               "away_dif_win_pct",
-               "last30_away_pitcher_winpct",
-               "last30_home_pitcher_winpct", "last30_away_pitcher_mean_ip",
-               "last30_home_pitcher_mean_ip","last30_away_pitcher_ERA",
-               "last30_home_pitcher_ERA","last30_away_pitcher_WHIP",
-               "last30_home_pitcher_WHIP",
-                "home_games_10days",
-                "away_games_10days",
-                "home_sos_losses",
-                "home_sos_wins",
-                "home_sos_total",
-                "away_sos_losses",
-                "away_sos_wins",
-               "away_sos_total"
+               "away_dif_win_pct"
+               # "last30_away_pitcher_winpct",
+               # "last30_home_pitcher_winpct", "last30_away_pitcher_mean_ip",
+               # "last30_home_pitcher_mean_ip","last30_away_pitcher_ERA",
+               # "last30_home_pitcher_ERA","last30_away_pitcher_WHIP",
+               # "last30_home_pitcher_WHIP",
+               #  "home_games_10days",
+               #  "away_games_10days",
+               #  #"home_sos_losses",
+               #  "home_sos_wins",
+               #  "home_sos_total",
+               #  #"away_sos_losses",
+               #  "away_sos_wins",
+               # "away_sos_total"
                )
 response = "winHome"
 
@@ -50,8 +51,11 @@ response = "winHome"
 # train_data <- df[train_idx,]
 # test_data <- df[-train_idx,]
 library(caTools)
+# df=df %>% mutate(winHome = case_when(teams.away.isWinner&is.na(winHome)~0,
+#                                      !teams.away.isWinner&is.na(winHome)~1,
+#                                      TRUE~winHome))
 set.seed(123)
-df = df %>% mutate(winHome = as.factor(winHome))
+df = df %>% filter(!is.na(winHome)) %>% mutate(winHome = as.factor(winHome))
 sample <- sample.split(df$officialDate, SplitRatio = 0.9)
 train_data  <- subset(df, sample == TRUE)
 test_data   <- subset(df, sample == FALSE)
@@ -89,9 +93,8 @@ automl_model <- h2o.automl(
   seed = 123 # for reproducibility
 )
 
-
 #Avaliação modelo treinado
-h2o.get_leaderboard(automl_model, "mean_per_class_error")
+#h2o.get_leaderboard(automl_model, "mean_per_class_error")
 #h2o.get_leaderboard(automl_model, "AUC")
 m <- h2o.get_best_model(automl_model,criterion ="mean_per_class_error" )
 h2o.confusionMatrix(m)
@@ -124,7 +127,7 @@ saveRDS(metrics_test,paste0("data/results/",format(Sys.Date(), "%Y%m%d"),"_metri
 saveRDS(test2,paste0("data/results/",format(Sys.Date(), "%Y%m%d"),"_data_test.rds"))
 # Stop the H2O cluster
 saveRDS(m,paste0("data/models/",format(Sys.Date(), "%Y%m%d"),"_model.rds"))
-saveRDS(varimp,paste0("data/models/",format(Sys.Date(), "%Y%m%d"),"_varimp.rds"))
+if(nrow(varimp)>0){saveRDS(varimp,paste0("data/models/",format(Sys.Date(), "%Y%m%d"),"_varimp.rds"))}
 
 
 

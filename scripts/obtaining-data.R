@@ -185,7 +185,7 @@ prepare_games = function(date =NULL){
       nrow()
 
     game = games[j,] %>%
-      mutate({if("winHome" %in% names(.)) winHome = if_else(teams.away.isWinner,0,1) else NULL} )%>%
+      mutate(winHome ={if("teams.away.isWinner" %in% names(.))  ifelse(teams.away.isWinner,0,1) else NA} )%>%
       #mutate(winHome = if_else(teams.away.isWinner,0,1)) %>%
       # select(-any_of(c(link:gameDate,isTie:publicFacing,gamedayType:seasonDisplay,scheduledInnings:teams.away.seriesNumber,
       #           teams.away.team.id:teams.home.seriesNumber,teams.home.team.id:content.link))) %>%
